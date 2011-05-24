@@ -13,7 +13,7 @@ TVout TV;
 // with which the ball is moving in the X and Y directions
 
 int ball_x, ball_y;
-int delta_x, delta_y;
+float delta_x, delta_y;
 
 // The input A/D ports on which the two paddles are connected
 
@@ -24,7 +24,7 @@ int right_paddle = 2;
 // The other two values are used to store the last paddle position for
 // calculating the speed.
 
-int left_paddle_speed, right_paddle_speed;
+float left_paddle_speed, right_paddle_speed;
 int left_paddle_y, right_paddle_y;
 
 // The scores for the two players
@@ -80,18 +80,8 @@ void loop() {
   TV.delay(50);
 
   if ( !game_running ) {
-    TV.clear_screen();
-    if ( right_score > left_score ) {
-      center_text( 0, "Blue wins!" );
-    } else {
-      center_text( 0, "Red wins!" );
-    }
-    
-    center_text( 6, "Game over" );
-    center_text( 8, "Press Fire to play again" );
-    
     if ( fire_pressed() ) {
-      game_running = 1;
+      reset_game();
     }
     
     return;
@@ -112,19 +102,40 @@ void loop() {
   // Handle the ball hitting the left or right paddle.  When hit the x velocity
   // is reversed and the velocity updated based on the speed with which the
   // paddle was moving at the time of the hit
+  //
+  // Since the ball's velocity may have caused it to 'jump' over the paddle we
+  // need to calculate where the ball would have been when it was on the paddle
+  // to do that we need to know it's position from the previous location of the
+  // ball and it's current position.
+  //
+  // The end points of the ball's line of motion are ( ball_x - delta_x, ball_y - delta_y )
+  // and ( ball_x, ball_y ).  The angle of the line is simply delta_y / delta_x and so
+  // the equation of the line running is y = (delta_y / delta_x)(x - ball_x) + ball_y which
+  // we evalulate at the x position of the paddle face.
   
-  if ( ( ball_x <= 2 ) && ( TV.get_pixel( 1, ball_y ) == WHITE ) ) {
+  int left_y = (delta_y / delta_x) * ( 1 - ball_x ) + ball_y;
+  int right_y = (delta_y / delta_x) * ( 125 - ball_x ) + ball_y;
+  
+  if ( ( ball_x < 2 ) && ( TV.get_pixel( 1, left_y ) == WHITE ) ) {
     delta_x = -delta_x;
-    delta_x += left_paddle_speed;
+    delta_x += abs(left_paddle_speed*0.75);
+    if ( delta_x == 0 ) {    
+       delta_x = 1; 
+    }
     delta_y += left_paddle_speed;
     ball_x = 2;
+    TV.tone(256,10);
   }
   
-  if ( ( ball_x >= 125 ) && ( TV.get_pixel( 126, ball_y ) == WHITE ) ) {
+  if ( ( ball_x > 124 ) && ( TV.get_pixel( 126, right_y ) == WHITE ) ) {
     delta_x = -delta_x;
-    delta_x += right_paddle_speed;
+    delta_x -= abs(right_paddle_speed*0.75);
+    if ( delta_x == 0 ) {    
+       delta_x = 1; 
+    }
     delta_y += right_paddle_speed;
     ball_x = 125; 
+    TV.tone(256,10);
   }
   
   // Handle a bounce off the top of bottom of the play area
@@ -145,7 +156,7 @@ void loop() {
     reset_ball();
     right_score += 1;
     if ( right_score == 10 ) {
-      game_running = 0;
+      game_over();
       return;
     }
   }
@@ -154,12 +165,29 @@ void loop() {
     reset_ball();
     left_score += 1;
     if ( left_score == 10 ) {
-      game_running = 0;
+      game_over();
       return;
     }
   }
 
   TV.set_pixel(ball_x, ball_y,WHITE);
+}
+
+// game_over: handle the end of a game and show the winner
+
+void game_over()
+{
+  TV.clear_screen();
+  if ( right_score > left_score ) {
+    center_text( 0, "Blue wins!" );
+  } else {
+    center_text( 0, "Red wins!" );
+  }
+    
+  center_text( 6, "Game over" );
+  center_text( 8, "Press Fire to replay" );
+  
+  game_running = 0;
 }
 
 // get_paddle: get the paddle position by reading the A/D converter and
@@ -185,7 +213,7 @@ void draw_paddles()
   TV.draw_column(127,right,right+15,WHITE);
   
   if ( left_paddle_y != -1 ) {
-    left_paddle_speed = left - left_paddle_y;
+    left_paddle_speed = (left - left_paddle_y)/2;
     if ( left_paddle_speed < -4 ) {
       left_paddle_speed = -4;      
     }
@@ -196,7 +224,7 @@ void draw_paddles()
   left_paddle_y = left;
 
   if ( right_paddle_y != -1 ) {
-    right_paddle_speed = right - right_paddle_y;
+    right_paddle_speed = (right - right_paddle_y)/2;
     if ( right_paddle_speed < -4 ) {
       right_paddle_speed = -4;      
     }
@@ -218,7 +246,8 @@ void center_text( int y, char * t )
   TV.println( l, y*8, t );
 }
 
-// fire_pressed: determine if the fire button is being pressed
+// fire_pressed: determine if the fire button is being pressed.  The button
+// is pulled high by default and pulled low on press.
 
 int fire_pressed() 
 {
