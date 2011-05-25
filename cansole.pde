@@ -72,12 +72,14 @@ void reset_game()
   ball_speed = 1;
   left_paddle_y = -1;
   right_paddle_y = -1;
+  left_paddle_speed = 0;
+  right_paddle_speed = 0;
   
   reset_ball();
 }
 
 void loop() {
-  TV.delay(50);
+  TV.delay(40);
 
   if ( !game_running ) {
     if ( fire_pressed() ) {
@@ -131,7 +133,7 @@ void loop() {
     delta_x = -delta_x;
     delta_x -= abs(right_paddle_speed*0.75);
     if ( delta_x == 0 ) {    
-       delta_x = 1; 
+       delta_x = -1; 
     }
     delta_y += right_paddle_speed;
     ball_x = 125; 
@@ -214,22 +216,22 @@ void draw_paddles()
   
   if ( left_paddle_y != -1 ) {
     left_paddle_speed = (left - left_paddle_y)/2;
-    if ( left_paddle_speed < -4 ) {
-      left_paddle_speed = -4;      
+    if ( left_paddle_speed < -3 ) {
+      left_paddle_speed = -3;      
     }
-    if ( left_paddle_speed > 4 ) {
-      left_paddle_speed = 4;      
+    if ( left_paddle_speed > 3 ) {
+      left_paddle_speed = 3;      
     }
   }
   left_paddle_y = left;
 
   if ( right_paddle_y != -1 ) {
     right_paddle_speed = (right - right_paddle_y)/2;
-    if ( right_paddle_speed < -4 ) {
-      right_paddle_speed = -4;      
+    if ( right_paddle_speed < -3 ) {
+      right_paddle_speed = -3;      
     }
-    if ( right_paddle_speed > 4 ) {
-      right_paddle_speed = 4;      
+    if ( right_paddle_speed > 3 ) {
+      right_paddle_speed = 3;      
     }
   }
   right_paddle_y = right;
